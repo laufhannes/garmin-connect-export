@@ -50,6 +50,8 @@ parser.add_argument('-u', '--unzip',
 	help="if downloading ZIP files (format: 'original'), unzip the file and removes the ZIP file",
 	action="store_true")
 
+parser.add_argument('-i', '--ignore_errors', help="continue downloading files in case of failed downloads", action="store_true")
+
 args = parser.parse_args()
 
 if args.version:
@@ -71,7 +73,7 @@ def http_req(url, post=None, headers={}):
 
 	# N.B. urllib2 will follow any 302 redirects. Also, the "open" call above may throw a urllib2.HTTPError which is checked for below.
 	if response.getcode() != 200:
-		raise Exception('Bad return code (' + response.getcode() + ') for: ' + url)
+		raise Exception('Bad return code (' + str(response.getcode()) + ') for: ' + url)
 
 	return response.read()
 
@@ -232,7 +234,17 @@ while total_downloaded < total_to_download:
 				print 'Writing empty file since there was no original activity data...',
 				data = ''
 			else:
-				raise Exception('Failed. Got an unexpected HTTP error (' + str(e.code) + ').')
+				if args.ignore_errors:
+					print 'Failed. Got an unexpected HTTP error (' + str(e.code) + ').'
+					continue
+				else:
+					raise Exception('Failed. Got an unexpected HTTP error (' + str(e.code) + ').')
+		except Exception, e:
+			if args.ignore_errors:
+				print 'Failed. %s ' % e
+				continue
+			else:
+				raise
 
 		save_file = open(data_filename, file_mode)
 		save_file.write(data)
